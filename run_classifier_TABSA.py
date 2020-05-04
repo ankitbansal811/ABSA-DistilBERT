@@ -326,6 +326,11 @@ def main(args):
                 logger.info("Batch loss = %f, Avg loss = %f", loss.item(), tr_loss/(step+1))
         
         logger.info("Training loss after %f epoch = %f", epoch, tr_loss)
+        logger.info("Creating a checkpoint")
+        model.eval().cpu()
+        ckpt_model_filename = "ckpt_epoch_" + str(epoch) + ".pth"
+        ckpt_model_path = os.path.join(args.output_dir, ckpt_model_filename)
+        torch.save(model.state_dict(), ckpt_model_path)
 
         # eval_test
         if args.eval_test:
