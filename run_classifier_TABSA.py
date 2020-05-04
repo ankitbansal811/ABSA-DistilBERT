@@ -9,6 +9,7 @@ import collections
 import logging
 import os
 import random
+import shutil
 
 import numpy as np
 import torch
@@ -232,7 +233,7 @@ def main(args):
             args.max_seq_length, bert_config.max_position_embeddings))
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        os.rmdir(args.output_dir)
+        shutil.rmtree(args.output_dir)
         # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -324,13 +325,16 @@ def main(args):
             if step%100==0:
                 logger.info("Epoch = %d, Batch = %d", epoch, (step+1))
                 logger.info("Batch loss = %f, Avg loss = %f", loss.item(), tr_loss/(step+1))
+
+            if global_step%1000==0:
+                logger.info("Creating a checkpoint.")
+                model.eval().cpu()
+                ckpt_model_filename = "ckpt_epoch_" + str(epoch) + "_steps_" + str(global_step) + ".pth"
+                ckpt_model_path = os.path.join(args.output_dir, ckpt_model_filename)
+                torch.save(model.state_dict(), ckpt_model_path)
+                model.to(device)
         
         logger.info("Training loss after %f epoch = %f", epoch, tr_loss)
-        logger.info("Creating a checkpoint")
-        model.eval().cpu()
-        ckpt_model_filename = "ckpt_epoch_" + str(epoch) + ".pth"
-        ckpt_model_path = os.path.join(args.output_dir, ckpt_model_filename)
-        torch.save(model.state_dict(), ckpt_model_path)
 
         # eval_test
         if args.eval_test:
