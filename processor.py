@@ -110,6 +110,6 @@ class Sentihood_QA_M_Processor(DataProcessor):
                 print("guid=",guid, end='')
                 print("text_a=",text_a, end='')
                 print("text_b=",text_b, end='')
-                print("label=",label, end='')
+                print("label=",label)
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples

@@ -311,6 +311,11 @@ def main(args):
                 loss = loss.mean() # mean() to average on multi-gpu.
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
+            if step%100==0:
+                print(step)
+                print("Running back propogation on loss")
+                print("Feeding a batch to model to get loss")
+                print("Enough gradient accumulated. Running optimizer step.")
             loss.backward()
             tr_loss += loss.item()
             nb_tr_examples += input_ids.size(0)
