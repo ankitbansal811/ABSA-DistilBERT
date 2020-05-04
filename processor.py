@@ -46,6 +46,13 @@ class DataProcessor(object):
         """Gets a collection of `InputExample`s for the test set."""
         raise NotImplementedError()
 
+    def get_examples(self, data_dir, set_type):
+        """Gets a collection of InputExample's for any given set.
+        data_dir: str - data directory
+        set_type: str - choices[train, test, dev]"""
+        raise NotImplementedError
+
+
     def get_labels(self):
         """Gets the list of labels for this data set."""
         raise NotImplementedError()
@@ -59,88 +66,6 @@ class DataProcessor(object):
             for line in reader:
                 lines.append(line)
             return lines
-
-
-class Sentihood_single_Processor(DataProcessor):
-    """Processor for the Sentihood data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train.tsv"),header=None,sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev.tsv"),header=None,sep="\t").values
-        return self._create_examples(dev_data, "dev")
-    
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test.tsv"),header=None,sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['None', 'Positive', 'Negative']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[1]))
-            label = tokenization.convert_to_unicode(str(line[2]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-        return examples
-
-        
-class Sentihood_NLI_M_Processor(DataProcessor):
-    """Processor for the Sentihood data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_NLI_M.tsv"),sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_NLI_M.tsv"),sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_NLI_M.tsv"),sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['None', 'Positive', 'Negative']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[1]))
-            text_b = tokenization.convert_to_unicode(str(line[2]))
-            label = tokenization.convert_to_unicode(str(line[3]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("text_b=",text_b)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
 
 
 class Sentihood_QA_M_Processor(DataProcessor):
@@ -161,6 +86,12 @@ class Sentihood_QA_M_Processor(DataProcessor):
         test_data = pd.read_csv(os.path.join(data_dir, "test_QA_M.tsv"),sep="\t").values
         return self._create_examples(test_data, "test")
 
+    def get_examples(self, data_dir, set_type):
+        """See base class."""
+        file = '{}_QA_M.tsv'.format(set_type)
+        data = pd.read_csv(os.path.join(data_dir, file), sep="\t").values
+        return self._create_examples(data, set_type)
+
     def get_labels(self):
         """See base class."""
         return ['None', 'Positive', 'Negative']
@@ -174,300 +105,11 @@ class Sentihood_QA_M_Processor(DataProcessor):
             text_a = tokenization.convert_to_unicode(str(line[1]))
             text_b = tokenization.convert_to_unicode(str(line[2]))
             label = tokenization.convert_to_unicode(str(line[3]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("text_b=",text_b)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class Sentihood_NLI_B_Processor(DataProcessor):
-    """Processor for the Sentihood data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_NLI_B.tsv"),sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_NLI_B.tsv"),sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_NLI_B.tsv"),sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['0', '1']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[2]))
-            text_b = tokenization.convert_to_unicode(str(line[1]))
-            label = tokenization.convert_to_unicode(str(line[3]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("text_b=",text_b)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class Sentihood_QA_B_Processor(DataProcessor):
-    """Processor for the Sentihood data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_QA_B.tsv"),sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_QA_B.tsv"),sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_QA_B.tsv"),sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['0', '1']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[2]))
-            text_b = tokenization.convert_to_unicode(str(line[1]))
-            label = tokenization.convert_to_unicode(str(line[3]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("text_b=",text_b)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-        
-class Semeval_single_Processor(DataProcessor):
-    """Processor for the Semeval 2014 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train.csv"),header=None,sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev.csv"),header=None,sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test.csv"),header=None,sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['positive', 'neutral', 'negative', 'conflict', 'none']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[3]))
-            label = tokenization.convert_to_unicode(str(line[1]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-        return examples
-
-
-class Semeval_NLI_M_Processor(DataProcessor):
-    """Processor for the Semeval 2014 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_NLI_M.csv"),header=None,sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_NLI_M.csv"),header=None,sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_NLI_M.csv"),header=None,sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['positive', 'neutral', 'negative', 'conflict', 'none']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[3]))
-            text_b = tokenization.convert_to_unicode(str(line[2]))
-            label = tokenization.convert_to_unicode(str(line[1]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class Semeval_QA_M_Processor(DataProcessor):
-    """Processor for the Semeval 2014 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_QA_M.csv"),header=None,sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_QA_M.csv"),header=None,sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_QA_M.csv"),header=None,sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['positive', 'neutral', 'negative', 'conflict', 'none']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[3]))
-            text_b = tokenization.convert_to_unicode(str(line[2]))
-            label = tokenization.convert_to_unicode(str(line[1]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class Semeval_NLI_B_Processor(DataProcessor):
-    """Processor for the Semeval 2014 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_NLI_B.csv"),header=None,sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_NLI_B.csv"),header=None,sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_NLI_B.csv"),header=None,sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['0', '1']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[2]))
-            text_b = tokenization.convert_to_unicode(str(line[3]))
-            label = tokenization.convert_to_unicode(str(line[1]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class Semeval_QA_B_Processor(DataProcessor):
-    """Processor for the Semeval 2014 data set."""
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        train_data = pd.read_csv(os.path.join(data_dir, "train_QA_B.csv"),header=None,sep="\t").values
-        return self._create_examples(train_data, "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        dev_data = pd.read_csv(os.path.join(data_dir, "dev_QA_B.csv"),header=None,sep="\t").values
-        return self._create_examples(dev_data, "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        test_data = pd.read_csv(os.path.join(data_dir, "test_QA_B.csv"),header=None,sep="\t").values
-        return self._create_examples(test_data, "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ['0', '1']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-          #  if i>50:break
-            guid = "%s-%s" % (set_type, i)
-            text_a = tokenization.convert_to_unicode(str(line[2]))
-            text_b = tokenization.convert_to_unicode(str(line[3]))
-            label = tokenization.convert_to_unicode(str(line[1]))
-            if i%1000==0:
-                print(i)
-                print("guid=",guid)
-                print("text_a=",text_a)
-                print("label=",label)
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+            if i%2000==0:
+                print(i, end='')
+                print("guid=",guid, end='')
+                print("text_a=",text_a, end='')
+                print("text_b=",text_b, end='')
+                print("label=",label, end='')
+            examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples

@@ -21,11 +21,7 @@ from tqdm import tqdm, trange
 import tokenization
 from modeling import BertConfig, BertForSequenceClassification
 from optimization import BERTAdam
-from processor import (Semeval_NLI_B_Processor, Semeval_NLI_M_Processor,
-                       Semeval_QA_B_Processor, Semeval_QA_M_Processor,
-                       Semeval_single_Processor, Sentihood_NLI_B_Processor,
-                       Sentihood_NLI_M_Processor, Sentihood_QA_B_Processor,
-                       Sentihood_QA_M_Processor, Sentihood_single_Processor)
+from processor import Sentihood_QA_M_Processor
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -146,105 +142,66 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
         else:
             tokens_b.pop()
 
-
-def main():
+def arg_parser():
     parser = argparse.ArgumentParser()
 
     ## Required parameters
-    parser.add_argument("--task_name",
-                        default=None,
-                        type=str,
-                        required=True,
-                        choices=["sentihood_single", "sentihood_NLI_M", "sentihood_QA_M", \
-                                "sentihood_NLI_B", "sentihood_QA_B", "semeval_single", \
-                                "semeval_NLI_M", "semeval_QA_M", "semeval_NLI_B", "semeval_QA_B"],
-                        help="The name of the task to train.")
-    parser.add_argument("--data_dir",
-                        default=None,
-                        type=str,
-                        required=True,
+    # parser.add_argument("--task_name", default=None, type=str, required=True,
+    #                     choices=["sentihood_single", "sentihood_NLI_M", "sentihood_QA_M", \
+    #                             "sentihood_NLI_B", "sentihood_QA_B", "semeval_single", \
+    #                             "semeval_NLI_M", "semeval_QA_M", "semeval_NLI_B", "semeval_QA_B"],
+    #                     help="The name of the task to train.")
+    parser.add_argument("--data_dir", default=None, type=str, required=True,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--vocab_file",
-                        default=None,
-                        type=str,
-                        required=True,
+    parser.add_argument("--vocab_file", default=None, type=str, required=True,
                         help="The vocabulary file that the BERT model was trained on.")
-    parser.add_argument("--bert_config_file",
-                        default=None,
-                        type=str,
-                        required=True,
+    parser.add_argument("--bert_config_file", default=None, type=str, required=True,
                         help="The config json file corresponding to the pre-trained BERT model. \n"
                              "This specifies the model architecture.")
-    parser.add_argument("--output_dir",
-                        default=None,
-                        type=str,
-                        required=True,
+    parser.add_argument("--output_dir", default=None, type=str, required=True,
                         help="The output directory where the model checkpoints will be written.")
-    parser.add_argument("--init_checkpoint",
-                        default=None,
-                        type=str,
-                        required=True,
+    parser.add_argument("--init_checkpoint", default=None, type=str, required=True,
                         help="Initial checkpoint (usually from a pre-trained BERT model).")
     
     ## Other parameters
-    parser.add_argument("--eval_test",
-                        default=False,
-                        action='store_true',
-                        help="Whether to run eval on the test set.")                    
-    parser.add_argument("--do_lower_case",
-                        default=False,
-                        action='store_true',
+    parser.add_argument("--eval_test", default=False, action='store_true', help="Whether to run eval on the test set.")                    
+    parser.add_argument("--do_lower_case", default=False, action='store_true',
                         help="Whether to lower case the input text. True for uncased models, False for cased models.")
-    parser.add_argument("--max_seq_length",
-                        default=128,
-                        type=int,
+    parser.add_argument("--max_seq_length", default=128, type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. \n"
                              "Sequences longer than this will be truncated, and sequences shorter \n"
                              "than this will be padded.")
-    parser.add_argument("--train_batch_size",
-                        default=32,
-                        type=int,
-                        help="Total batch size for training.")
-    parser.add_argument("--eval_batch_size",
-                        default=8,
-                        type=int,
-                        help="Total batch size for eval.")
-    parser.add_argument("--learning_rate",
-                        default=5e-5,
-                        type=float,
-                        help="The initial learning rate for Adam.")
-    parser.add_argument("--num_train_epochs",
-                        default=3.0,
-                        type=float,
-                        help="Total number of training epochs to perform.")
-    parser.add_argument("--warmup_proportion",
-                        default=0.1,
-                        type=float,
-                        help="Proportion of training to perform linear learning rate warmup for. "
+    parser.add_argument("--train_batch_size", default=32, type=int, help="Total batch size for training.")
+    parser.add_argument("--eval_batch_size", default=8, type=int, help="Total batch size for eval.")
+    parser.add_argument("--learning_rate", default=5e-5, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--num_train_epochs", default=3.0, type=float, help="Total number of training epochs to perform.")
+    parser.add_argument("--warmup_proportion", default=0.1, type=float, help="Proportion of training to perform linear learning rate warmup for. "
                              "E.g., 0.1 = 10%% of training.")
-    parser.add_argument("--no_cuda",
-                        default=False,
-                        action='store_true',
-                        help="Whether not to use CUDA when available")
-    parser.add_argument("--accumulate_gradients",
-                        type=int,
-                        default=1,
+    parser.add_argument("--no_cuda", default=False, action='store_true', help="Whether not to use CUDA when available")
+    parser.add_argument("--accumulate_gradients", type=int, default=1,
                         help="Number of steps to accumulate gradient on (divide the batch_size and accumulate)")
-    parser.add_argument("--local_rank",
-                        type=int,
-                        default=-1,
-                        help="local_rank for distributed training on gpus")
-    parser.add_argument('--seed', 
-                        type=int, 
-                        default=42,
-                        help="random seed for initialization")
-    parser.add_argument('--gradient_accumulation_steps',
-                        type=int,
-                        default=1,
+    parser.add_argument("--local_rank", type=int, default=-1, help="local_rank for distributed training on gpus")
+    parser.add_argument('--seed', type=int,  default=42, help="random seed for initialization")
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=1,
                         help="Number of updates steps to accumualte before performing a backward/update pass.")                       
     args = parser.parse_args()
+    return args
 
 
+def get_data(processor, label_list, tokenizer, data_dir, set_type):
+    examples = processor.get_examples(data_dir, set_type)
+    features = convert_examples_to_features(examples, label_list, args.max_seq_length, tokenizer)
+
+    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+    all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+    all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+    all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
+
+    data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    return data, len(examples)
+
+
+def main(args):
     if args.local_rank == -1 or args.no_cuda:
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
         n_gpu = torch.cuda.device_count()
@@ -280,65 +237,31 @@ def main():
 
 
     # prepare dataloaders
-    processors = {
-        "sentihood_single":Sentihood_single_Processor,
-        "sentihood_NLI_M":Sentihood_NLI_M_Processor,
-        "sentihood_QA_M":Sentihood_QA_M_Processor,
-        "sentihood_NLI_B":Sentihood_NLI_B_Processor,
-        "sentihood_QA_B":Sentihood_QA_B_Processor,
-        "semeval_single":Semeval_single_Processor,
-        "semeval_NLI_M":Semeval_NLI_M_Processor,
-        "semeval_QA_M":Semeval_QA_M_Processor,
-        "semeval_NLI_B":Semeval_NLI_B_Processor,
-        "semeval_QA_B":Semeval_QA_B_Processor,
-    }
-
-    processor = processors[args.task_name]()
+    processor = Sentihood_QA_M_Processor()
     label_list = processor.get_labels()
-
-    tokenizer = tokenization.FullTokenizer(
-        vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
+    tokenizer = tokenization.FullTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
 
     # training set
-    train_examples = None
     num_train_steps = None
-    train_examples = processor.get_train_examples(args.data_dir)
-    num_train_steps = int(
-        len(train_examples) / args.train_batch_size * args.num_train_epochs)
 
-    train_features = convert_examples_to_features(
-        train_examples, label_list, args.max_seq_length, tokenizer)
-    logger.info("***** Running training *****")
-    logger.info("  Num examples = %d", len(train_examples))
-    logger.info("  Batch size = %d", args.train_batch_size)
-    logger.info("  Num steps = %d", num_train_steps)
-
-    all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)
-    all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
-    all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long)
-    all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
-
-    train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    train_data, len_train = get_data(processor, label_list, tokenizer, args.data_dir, 'train')
     if args.local_rank == -1:
         train_sampler = RandomSampler(train_data)
     else:
         train_sampler = DistributedSampler(train_data)
     train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
 
+    num_train_steps = int(len_train / args.train_batch_size * args.num_train_epochs)
+    logger.info("***** Running training *****")
+    logger.info("  Num Training examples = %d", len_train)
+    logger.info("  Training Batch size = %d", args.train_batch_size)
+    logger.info("  Training Num steps = %d", num_train_steps)
+
     # test set
     if args.eval_test:
-        test_examples = processor.get_test_examples(args.data_dir)
-        test_features = convert_examples_to_features(
-            test_examples, label_list, args.max_seq_length, tokenizer)
-
-        all_input_ids = torch.tensor([f.input_ids for f in test_features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in test_features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in test_features], dtype=torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in test_features], dtype=torch.long)
-
-        test_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        test_data, len_test = get_data(processor, label_list, tokenizer, args.data_dir, 'test')
         test_dataloader = DataLoader(test_data, batch_size=args.eval_batch_size, shuffle=False)
-
+        logger.info("  Num Test examples = %d", len_test)
 
     # model and optimizer
     model = BertForSequenceClassification(bert_config, len(label_list))
@@ -447,10 +370,12 @@ def main():
 
         logger.info("***** Eval results *****")
         with open(output_log_file, "a+") as writer:
+            print("Final Classfier Results: ", result)
             for key in result.keys():
                 logger.info("  %s = %s\n", key, str(result[key]))
                 writer.write("%s\t" % (str(result[key])))
             writer.write("\n")
 
 if __name__ == "__main__":
-    main()
+    args = arg_parser()
+    main(args)
