@@ -232,7 +232,8 @@ def main(args):
             args.max_seq_length, bert_config.max_position_embeddings))
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        os.rmdir(args.output_dir)
+        # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     os.makedirs(args.output_dir, exist_ok=True)
 
 
@@ -322,9 +323,9 @@ def main(args):
             
             if step%100==0:
                 logger.info("Epoch = %d, Batch = %d", epoch, (step+1))
-                logger.info("Batch loss = %d, Avg loss = %d", loss.item(), tr_loss/(step+1))
+                logger.info("Batch loss = %f, Avg loss = %f", loss.item(), tr_loss/(step+1))
         
-        logger.info("Training loss after %d epoch = %d", epoch, tr_loss)
+        logger.info("Training loss after %f epoch = %f", epoch, tr_loss)
 
         # eval_test
         if args.eval_test:
