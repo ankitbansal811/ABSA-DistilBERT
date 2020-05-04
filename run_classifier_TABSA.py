@@ -319,6 +319,7 @@ def main(args):
                 optimizer.step()    # We have accumulated enought gradients
                 model.zero_grad()
                 global_step += 1
+            print("scdsfs")
         
         # eval_test
         if args.eval_test:
