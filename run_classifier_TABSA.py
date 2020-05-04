@@ -311,11 +311,6 @@ def main(args):
                 loss = loss.mean() # mean() to average on multi-gpu.
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
-            if step%100==0:
-                print(step)
-                print("Running back propogation on loss")
-                print("Feeding a batch to model to get loss")
-                print("Enough gradient accumulated. Running optimizer step.")
             loss.backward()
             tr_loss += loss.item()
             nb_tr_examples += input_ids.size(0)
@@ -324,8 +319,13 @@ def main(args):
                 optimizer.step()    # We have accumulated enought gradients
                 model.zero_grad()
                 global_step += 1
-            print("scdsfs")
+            
+            if step%100==0:
+                logger.info("Epoch = %d, Batch = %d", epoch, (step+1))
+                logger.info("Batch loss = %d, Avg loss = %d", loss.item(), tr_loss/(step+1))
         
+        logger.info("Training loss after %d epoch = %d", epoch, tr_loss)
+
         # eval_test
         if args.eval_test:
             model.eval()
