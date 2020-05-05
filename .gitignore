@@ -2,3 +2,5 @@ __pycache__
 venv
 data/
 .vscode
+uncased_L-12_H-768_A-12/
+results/

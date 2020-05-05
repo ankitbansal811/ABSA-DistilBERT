@@ -11,7 +11,7 @@ import os
 import random
 
 import numpy as np
-import torch
+import torch 
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -19,7 +19,7 @@ from torch.utils.data.sampler import RandomSampler, SequentialSampler
 from tqdm import tqdm, trange
 
 import tokenization
-from modeling import BertConfig, BertForSequenceClassification
+from modeling import BertConfig, BertForSequenceClassification, BertBinaryClassifier
 from optimization import BERTAdam
 from processor import Sentihood_QA_M_Processor
 
@@ -28,14 +28,14 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
                     level = logging.INFO)
 logger = logging.getLogger(__name__)
 
+from torch.optim import Adam
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_id):
+    def __init__(self, input_ids, input_mask, label_id):
         self.input_ids = input_ids
         self.input_mask = input_mask
-        self.segment_ids = segment_ids
         self.label_id = label_id
 
 
@@ -83,21 +83,15 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         # used as as the "sentence vector". Note that this only makes sense because
         # the entire model is fine-tuned.
         tokens = []
-        segment_ids = []
         tokens.append("[CLS]")
-        segment_ids.append(0)
         for token in tokens_a:
             tokens.append(token)
-            segment_ids.append(0)
         tokens.append("[SEP]")
-        segment_ids.append(0)
 
         if tokens_b:
             for token in tokens_b:
                 tokens.append(token)
-                segment_ids.append(1)
             tokens.append("[SEP]")
-            segment_ids.append(1)
 
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
@@ -109,11 +103,9 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         while len(input_ids) < max_seq_length:
             input_ids.append(0)
             input_mask.append(0)
-            segment_ids.append(0)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
 
         label_id = label_map[example.label]
 
@@ -121,7 +113,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
                 InputFeatures(
                         input_ids=input_ids,
                         input_mask=input_mask,
-                        segment_ids=segment_ids,
                         label_id=label_id))
     return features
 
@@ -155,9 +146,6 @@ def arg_parser():
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--vocab_file", default=None, type=str, required=True,
                         help="The vocabulary file that the BERT model was trained on.")
-    parser.add_argument("--bert_config_file", default=None, type=str, required=True,
-                        help="The config json file corresponding to the pre-trained BERT model. \n"
-                             "This specifies the model architecture.")
     parser.add_argument("--output_dir", default=None, type=str, required=True,
                         help="The output directory where the model checkpoints will be written.")
     parser.add_argument("--init_checkpoint", default=None, type=str, required=True,
@@ -194,10 +182,9 @@ def get_data(processor, label_list, tokenizer, data_dir, set_type):
 
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-    all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
     all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
 
-    data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+    data = TensorDataset(all_input_ids, all_input_mask, all_label_ids)
     return data, len(examples)
 
 
@@ -224,7 +211,8 @@ def main(args):
     if n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-    bert_config = BertConfig.from_json_file(args.bert_config_file)
+    bert_config_file = "distilbert_config.json"
+    bert_config = BertConfig.from_json_file(bert_config_file)
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
@@ -264,9 +252,12 @@ def main(args):
         logger.info("  Num Test examples = %d", len_test)
 
     # model and optimizer
-    model = BertForSequenceClassification(bert_config, len(label_list))
-    if args.init_checkpoint is not None:
-        model.bert.load_state_dict(torch.load(args.init_checkpoint, map_location='cpu'))
+    #model = BertForSequenceClassification(bert_config, len(label_list))
+    #if args.init_checkpoint is not None:
+    #    model.bert.load_state_dict(torch.load(args.init_checkpoint, map_location='cpu'))
+    
+    model = BertBinaryClassifier(len(label_list), dropout = .1)
+
     model.to(device)
 
     if args.local_rank != -1:
@@ -274,7 +265,7 @@ def main(args):
                                                           output_device=args.local_rank)
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)
-
+    '''
     no_decay = ['bias', 'gamma', 'beta']
     optimizer_parameters = [
          {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
@@ -285,8 +276,8 @@ def main(args):
                          lr=args.learning_rate,
                          warmup=args.warmup_proportion,
                          t_total=num_train_steps)
-
-
+    '''
+    optimizer = Adam(model.parameters(), lr=args.learning_rate)
     # train
     output_log_file = os.path.join(args.output_dir, "log.txt")
     print("output_log_file=",output_log_file)
@@ -298,45 +289,49 @@ def main(args):
     
     global_step = 0
     epoch=0
-    for _ in trange(int(args.num_train_epochs), desc="Epoch"):
-        epoch+=1
+    
+    for epoch_num in range(int(args.num_train_epochs)):
         model.train()
-        tr_loss = 0
-        nb_tr_examples, nb_tr_steps = 0, 0
-        for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-            batch = tuple(t.to(device) for t in batch)
-            input_ids, input_mask, segment_ids, label_ids = batch
-            loss, _ = model(input_ids, segment_ids, input_mask, label_ids)
-            if n_gpu > 1:
-                loss = loss.mean() # mean() to average on multi-gpu.
-            if args.gradient_accumulation_steps > 1:
-                loss = loss / args.gradient_accumulation_steps
+        train_loss = 0
+        for step, batch_data in enumerate(tqdm(train_dataloader, desc="Iteration")):
+            #token_ids, masks, labels = tuple(t.to(device) for t in batch_data)
+            batch = tuple(t.to(device) for t in batch_data)
+            input_ids, input_mask, label_ids = batch
+            print(input_ids)
+            outputs = model(input_ids, input_mask, label_ids)
+           
+            #logits is the proba
+            loss, logits = outputs[:2]
+            
+            train_loss += loss.item()
+            
             loss.backward()
-            tr_loss += loss.item()
-            nb_tr_examples += input_ids.size(0)
-            nb_tr_steps += 1
+
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 optimizer.step()    # We have accumulated enought gradients
                 model.zero_grad()
                 global_step += 1
-            print("scdsfs")
-        
-        # eval_test
+            print("Step no ", step)
+            print("loss is ", loss)
+            break
+        print('Epoch: ', epoch_num + 1)
+        print("Total loss in the epoch ", train_loss)
+
         if args.eval_test:
             model.eval()
             test_loss, test_accuracy = 0, 0
             nb_test_steps, nb_test_examples = 0, 0
             with open(os.path.join(args.output_dir, "test_ep_"+str(epoch)+".txt"),"w") as f_test:
-                for input_ids, input_mask, segment_ids, label_ids in test_dataloader:
+                for input_ids, input_mask, label_ids in test_dataloader:
                     input_ids = input_ids.to(device)
                     input_mask = input_mask.to(device)
-                    segment_ids = segment_ids.to(device)
                     label_ids = label_ids.to(device)
 
                     with torch.no_grad():
-                        tmp_test_loss, logits = model(input_ids, segment_ids, input_mask, label_ids)
+                        outputs = model(input_ids, input_mask, label_ids)
 
-                    logits = F.softmax(logits, dim=-1)
+                    tmp_test_loss = outputs[0]
+                    logits = outputs[1]
                     logits = logits.detach().cpu().numpy()
                     label_ids = label_ids.to('cpu').numpy()
                     outputs = np.argmax(logits, axis=1)
@@ -356,7 +351,7 @@ def main(args):
             test_loss = test_loss / nb_test_steps
             test_accuracy = test_accuracy / nb_test_examples
 
-
+        
         result = collections.OrderedDict()
         if args.eval_test:
             result = {'epoch': epoch,
@@ -376,6 +371,7 @@ def main(args):
                 logger.info("  %s = %s\n", key, str(result[key]))
                 writer.write("%s\t" % (str(result[key])))
             writer.write("\n")
+    
 
 if __name__ == "__main__":
     args = arg_parser()
