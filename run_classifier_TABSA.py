@@ -9,6 +9,7 @@ import collections
 import logging
 import os
 import random
+import shutil
 
 import numpy as np
 import torch 
@@ -142,7 +143,7 @@ def arg_parser():
     #                             "sentihood_NLI_B", "sentihood_QA_B", "semeval_single", \
     #                             "semeval_NLI_M", "semeval_QA_M", "semeval_NLI_B", "semeval_QA_B"],
     #                     help="The name of the task to train.")
-    parser.add_argument("--data_dir", default=None, type=str, required=True,
+    parser.add_argument("--data_dir", default="data/sentihood/bert-pair", type=str, required=False,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--vocab_file", default=None, type=str, required=True,
                         help="The vocabulary file that the BERT model was trained on.")
@@ -220,7 +221,8 @@ def main(args):
             args.max_seq_length, bert_config.max_position_embeddings))
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        shutil.rmtree(args.output_dir)
+        # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     os.makedirs(args.output_dir, exist_ok=True)
 
 
@@ -291,7 +293,7 @@ def main(args):
     
     for epoch_num in range(int(args.num_train_epochs)):
         model.train()
-        train_loss = 0
+        train_loss, nb_train_steps = 0, 0
         for step, batch_data in enumerate(tqdm(train_dataloader, desc="Iteration")):
             #token_ids, masks, labels = tuple(t.to(device) for t in batch_data)
             batch = tuple(t.to(device) for t in batch_data)
@@ -300,20 +302,29 @@ def main(args):
            
             #logits is the proba
             loss, logits = outputs[:2]
-            
             train_loss += loss.item()
-            
             loss.backward()
-
+            nb_train_steps += 1
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 optimizer.step()    # We have accumulated enought gradients
                 model.zero_grad()
                 global_step += 1
-            print("Step no ", step)
-            print("loss is ", loss)
-        print('Epoch: ', epoch_num + 1)
-        print("Total loss in the epoch ", train_loss)
+            
+            if step%100==0:
+                logger.info("Epoch = %d, Batch = %d", epoch_num, (step+1))
+                logger.info("Batch loss = %f, Avg loss = %f", loss.item(), train_loss/(step+1))
 
+            if global_step%1000==0:
+                logger.info("Creating a checkpoint.")
+                model.eval().cpu()
+                ckpt_model_filename = "ckpt_epoch_" + str(epoch_num) + "_steps_" + str(global_step) + ".pth"
+                ckpt_model_path = os.path.join(args.output_dir, ckpt_model_filename)
+                torch.save(model.state_dict(), ckpt_model_path)
+                model.to(device)
+        
+        logger.info("Training loss after %f epoch = %f", epoch_num, train_loss)
+
+        # eval_test
         if args.eval_test:
             model.eval()
             test_loss, test_accuracy = 0, 0
@@ -354,13 +365,13 @@ def main(args):
         if args.eval_test:
             result = {'epoch': epoch,
                     'global_step': global_step,
-                    'loss': tr_loss/nb_tr_steps,
+                    'loss': train_loss/nb_train_steps,
                     'test_loss': test_loss,
                     'test_accuracy': test_accuracy}
         else:
             result = {'epoch': epoch,
                     'global_step': global_step,
-                    'loss': tr_loss/nb_tr_steps}
+                    'loss': train_loss/nb_train_steps}
 
         logger.info("***** Eval results *****")
         with open(output_log_file, "a+") as writer:
