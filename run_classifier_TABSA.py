@@ -313,7 +313,6 @@ def main(args):
                 global_step += 1
             print("Step no ", step)
             print("loss is ", loss)
-            break
         print('Epoch: ', epoch_num + 1)
         print("Total loss in the epoch ", train_loss)
 
@@ -323,6 +322,7 @@ def main(args):
             nb_test_steps, nb_test_examples = 0, 0
             with open(os.path.join(args.output_dir, "test_ep_"+str(epoch)+".txt"),"w") as f_test:
                 for input_ids, input_mask, label_ids in test_dataloader:
+                    print(nb_test_steps)
                     input_ids = input_ids.to(device)
                     input_mask = input_mask.to(device)
                     label_ids = label_ids.to(device)
