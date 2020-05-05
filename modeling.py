@@ -468,10 +468,8 @@ import transformers
 class BertBinaryClassifier(nn.Module):
     def __init__(self, num_labels):
         super(BertBinaryClassifier, self).__init__()
+        self.bert = transformers.DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=num_labels)
 
-        self.bert = transformers.DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels = num_labels)
-
-    
     def forward(self, tokens, masks=None, label_ids=None):
-        outputs = self.bert(tokens, attention_mask=masks, labels = label_ids)
+        outputs = self.bert(tokens, attention_mask=masks, labels=label_ids)
         return outputs

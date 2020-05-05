@@ -145,12 +145,9 @@ def arg_parser():
     #                     help="The name of the task to train.")
     parser.add_argument("--data_dir", default="data/sentihood/bert-pair", type=str, required=False,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--vocab_file", default=None, type=str, required=True,
-                        help="The vocabulary file that the BERT model was trained on.")
-    parser.add_argument("--output_dir", default=None, type=str, required=True,
-                        help="The output directory where the model checkpoints will be written.")
-    parser.add_argument("--init_checkpoint", default=None, type=str, required=True,
-                        help="Initial checkpoint (usually from a pre-trained BERT model).")
+    parser.add_argument("--vocab_file", default=None, type=str, required=True, help="The vocabulary file that the BERT model was trained on.")
+    parser.add_argument("--output_dir", default=None, type=str, required=True, help="The output directory where the model checkpoints will be written.")
+    parser.add_argument("--init_checkpoint", default=None, type=str, help="Initial checkpoint (usually from a pre-trained BERT model).")
     
     ## Other parameters
     parser.add_argument("--eval_test", default=False, action='store_true', help="Whether to run eval on the test set.")                    
@@ -333,7 +330,6 @@ def main(args):
             nb_test_steps, nb_test_examples = 0, 0
             with open(os.path.join(args.output_dir, "test_ep_"+str(epoch)+".txt"),"w") as f_test:
                 for input_ids, input_mask, label_ids in test_dataloader:
-                    print(nb_test_steps)
                     input_ids = input_ids.to(device)
                     input_mask = input_mask.to(device)
                     label_ids = label_ids.to(device)
