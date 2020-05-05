@@ -466,7 +466,7 @@ class BertForQuestionAnswering(nn.Module):
 import transformers
 
 class BertBinaryClassifier(nn.Module):
-    def __init__(self, num_labels,  dropout=0.1):
+    def __init__(self, num_labels):
         super(BertBinaryClassifier, self).__init__()
 
         self.bert = transformers.DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels = num_labels)

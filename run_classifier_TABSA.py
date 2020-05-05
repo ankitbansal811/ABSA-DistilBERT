@@ -9,7 +9,7 @@ import collections
 import logging
 import os
 import random
-import shutil
+import time
 
 import numpy as np
 import torch 
@@ -20,7 +20,7 @@ from torch.utils.data.sampler import RandomSampler, SequentialSampler
 from tqdm import tqdm, trange
 
 import tokenization
-from modeling import BertConfig, BertForSequenceClassification, BertBinaryClassifier
+from modeling import BertConfig, BertBinaryClassifier
 from optimization import BERTAdam
 from processor import Sentihood_QA_M_Processor
 
@@ -220,8 +220,8 @@ def main(args):
             "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
             args.max_seq_length, bert_config.max_position_embeddings))
 
-    if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        shutil.rmtree(args.output_dir)
+    # if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
+    #     shutil.rmtree(args.output_dir)
         # raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -258,8 +258,9 @@ def main(args):
     #if args.init_checkpoint is not None:
     #    model.bert.load_state_dict(torch.load(args.init_checkpoint, map_location='cpu'))
     
-    model = BertBinaryClassifier(len(label_list), dropout = .1)
-
+    model = BertBinaryClassifier(len(label_list))
+    if args.init_checkpoint:
+        model.load_state_dict(torch.load(args.init_checkpoint, map_location='cpu'))
     model.to(device)
 
     if args.local_rank != -1:
@@ -280,7 +281,8 @@ def main(args):
                          t_total=num_train_steps)
     #optimizer = Adam(model.parameters(), lr=args.learning_rate)
     # train
-    output_log_file = os.path.join(args.output_dir, "log.txt")
+    timestamp = time.strftime('%b-%d-%Y_%H%M', time.localtime())
+    output_log_file = os.path.join(args.output_dir, "log_{}.txt".format(timestamp))
     print("output_log_file=",output_log_file)
     with open(output_log_file, "w") as writer:
         if args.eval_test:
@@ -310,11 +312,11 @@ def main(args):
                 model.zero_grad()
                 global_step += 1
             
-            if step%100==0:
+            if step%50==0:
                 logger.info("Epoch = %d, Batch = %d", epoch_num, (step+1))
                 logger.info("Batch loss = %f, Avg loss = %f", loss.item(), train_loss/(step+1))
 
-            if global_step%1000==0:
+            if global_step%500==0:
                 logger.info("Creating a checkpoint.")
                 model.eval().cpu()
                 ckpt_model_filename = "ckpt_epoch_" + str(epoch_num) + "_steps_" + str(global_step) + ".pth"
