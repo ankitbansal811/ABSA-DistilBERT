@@ -106,10 +106,10 @@ class Sentihood_QA_M_Processor(DataProcessor):
             text_b = tokenization.convert_to_unicode(str(line[2]))
             label = tokenization.convert_to_unicode(str(line[3]))
             if i%2000==0:
-                print(i, end='')
-                print("guid=",guid, end='')
-                print("text_a=",text_a, end='')
-                print("text_b=",text_b, end='')
+                print(i, end='\t')
+                print("guid=",guid, end='\t')
+                print("text_a=",text_a, end='\t')
+                print("text_b=",text_b, end='\t')
                 print("label=",label)
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples

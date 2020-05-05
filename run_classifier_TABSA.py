@@ -257,6 +257,7 @@ def main(args):
     
     model = BertBinaryClassifier(len(label_list))
     if args.init_checkpoint:
+        logger.info("Loading model from checkpoint %s", args.init_checkpoint)
         model.load_state_dict(torch.load(args.init_checkpoint, map_location='cpu'))
     model.to(device)
 
@@ -313,10 +314,10 @@ def main(args):
                 logger.info("Epoch = %d, Batch = %d", epoch_num, (step+1))
                 logger.info("Batch loss = %f, Avg loss = %f", loss.item(), train_loss/(step+1))
 
-            if global_step%500==0:
+            if (nb_train_steps*args.train_batch_size)%5000==0:
                 logger.info("Creating a checkpoint.")
                 model.eval().cpu()
-                ckpt_model_filename = "ckpt_epoch_" + str(epoch_num) + "_steps_" + str(global_step) + ".pth"
+                ckpt_model_filename = "ckpt_epoch_" + str(epoch_num+1) + "_examples_" + str(nb_train_steps*args.train_batch_size) + ".pth"
                 ckpt_model_path = os.path.join(args.output_dir, ckpt_model_filename)
                 torch.save(model.state_dict(), ckpt_model_path)
                 model.to(device)
@@ -328,7 +329,7 @@ def main(args):
             model.eval()
             test_loss, test_accuracy = 0, 0
             nb_test_steps, nb_test_examples = 0, 0
-            with open(os.path.join(args.output_dir, "test_ep_"+str(epoch)+".txt"),"w") as f_test:
+            with open(os.path.join(args.output_dir, "test_ep_"+str(epoch)+".txt"), "w") as f_test:
                 for input_ids, input_mask, label_ids in test_dataloader:
                     input_ids = input_ids.to(device)
                     input_mask = input_mask.to(device)
