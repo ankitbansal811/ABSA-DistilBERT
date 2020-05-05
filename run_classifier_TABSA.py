@@ -12,7 +12,9 @@ import random
 import time
 
 import numpy as np
-import torch 
+from scipy.special import softmax
+import torch
+from torch.optim import Adam
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -29,7 +31,6 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
                     level = logging.INFO)
 logger = logging.getLogger(__name__)
 
-from torch.optim import Adam
 
 class InputFeatures(object):
     """A single set of features of data."""
@@ -48,7 +49,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         label_map[label] = i
 
     features = []
-    for (ex_index, example) in enumerate(tqdm(examples)):
+    for (_, example) in enumerate(tqdm(examples)):
         tokens_a = tokenizer.tokenize(example.text_a)
 
         tokens_b = None
@@ -311,8 +312,8 @@ def main(args):
                 global_step += 1
             
             if step%50==0:
-                logger.info("Epoch = %d, Batch = %d", epoch_num, (step+1))
-                logger.info("Batch loss = %f, Avg loss = %f", loss.item(), train_loss/(step+1))
+                logger.info("Epoch = %d, Batch = %d, Batch loss = %f, Avg loss = %f", 
+                epoch_num, (step+1), loss.item(), train_loss/(step+1))
 
             if (nb_train_steps*args.train_batch_size)%5000==0:
                 logger.info("Creating a checkpoint.")
@@ -341,6 +342,7 @@ def main(args):
                     tmp_test_loss = outputs[0]
                     logits = outputs[1]
                     logits = logits.detach().cpu().numpy()
+                    logits = softmax(logits, axis=1)
                     label_ids = label_ids.to('cpu').numpy()
                     outputs = np.argmax(logits, axis=1)
                     for output_i in range(len(outputs)):

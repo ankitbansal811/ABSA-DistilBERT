@@ -4,10 +4,9 @@ import collections
 import numpy as np
 import pandas as pd
 from sklearn import metrics
-from sklearn.preprocessing import label_binarize
 
 
-def get_y_true(task_name):
+def get_y_true():
     """ 
     Read file to obtain y_true.
     All of five tasks of Sentihood use the test set of task-BERT-pair-NLI-M to get true labels.
@@ -31,7 +30,7 @@ def get_y_true(task_name):
     return y_true
 
 
-def get_y_pred(task_name, pred_data_dir):
+def get_y_pred(pred_data_dir):
     """ 
     Read file to obtain y_pred and scores.
     """
@@ -152,109 +151,15 @@ def sentihood_AUC_Acc(y_true, score):
     return aspect_Macro_AUC, sentiment_Acc, sentiment_Macro_AUC
 
 
-def semeval_PRF(y_true, y_pred):
-    """
-    Calculate "Micro P R F" of aspect detection task of SemEval-2014.
-    """
-    s_all=0
-    g_all=0
-    s_g_all=0
-    for i in range(len(y_pred)//5):
-        s=set()
-        g=set()
-        for j in range(5):
-            if y_pred[i*5+j]!=4:
-                s.add(j)
-            if y_true[i*5+j]!=4:
-                g.add(j)
-        if len(g)==0:continue
-        s_g=s.intersection(g)
-        s_all+=len(s)
-        g_all+=len(g)
-        s_g_all+=len(s_g)
-
-    p=s_g_all/s_all
-    r=s_g_all/g_all
-    f=2*p*r/(p+r)
-
-    return p,r,f
-
-
-def semeval_Acc(y_true, y_pred, score, classes=4):
-    """
-    Calculate "Acc" of sentiment classification task of SemEval-2014.
-    """
-    assert classes in [2, 3, 4], "classes must be 2 or 3 or 4."
-
-    if classes == 4:
-        total=0
-        total_right=0
-        for i in range(len(y_true)):
-            if y_true[i]==4:continue
-            total+=1
-            tmp=y_pred[i]
-            if tmp==4:
-                if score[i][0]>=score[i][1] and score[i][0]>=score[i][2] and score[i][0]>=score[i][3]:
-                    tmp=0
-                elif score[i][1]>=score[i][0] and score[i][1]>=score[i][2] and score[i][1]>=score[i][3]:
-                    tmp=1
-                elif score[i][2]>=score[i][0] and score[i][2]>=score[i][1] and score[i][2]>=score[i][3]:
-                    tmp=2
-                else:
-                    tmp=3
-            if y_true[i]==tmp:
-                total_right+=1
-        sentiment_Acc = total_right/total
-    elif classes == 3:
-        total=0
-        total_right=0
-        for i in range(len(y_true)):
-            if y_true[i]>=3:continue
-            total+=1
-            tmp=y_pred[i]
-            if tmp>=3:
-                if score[i][0]>=score[i][1] and score[i][0]>=score[i][2]:
-                    tmp=0
-                elif score[i][1]>=score[i][0] and score[i][1]>=score[i][2]:
-                    tmp=1
-                else:
-                    tmp=2
-            if y_true[i]==tmp:
-                total_right+=1
-        sentiment_Acc = total_right/total
-    else:
-        total=0
-        total_right=0
-        for i in range(len(y_true)):
-            if y_true[i]>=3 or y_true[i]==1:continue
-            total+=1
-            tmp=y_pred[i]
-            if tmp>=3 or tmp==1:
-                if score[i][0]>=score[i][2]:
-                    tmp=0
-                else:
-                    tmp=2
-            if y_true[i]==tmp:
-                total_right+=1
-        sentiment_Acc = total_right/total
-
-    return sentiment_Acc
-
-
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pred_data_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The pred data dir.")
+    parser.add_argument("--pred_data_dir",  default=None,  type=str, required=True, help="The pred data dir.")
     args = parser.parse_args()
 
-
     result = collections.OrderedDict()
-    task_name = "sentihood_QA_M"
-    y_true = get_y_true(task_name)
-    y_pred, score = get_y_pred(task_name, args.pred_data_dir)
+    # task_name = "sentihood_QA_M"
+    y_true = get_y_true()
+    y_pred, score = get_y_pred(args.pred_data_dir)
     aspect_strict_Acc = sentihood_strict_acc(y_true, y_pred)
     aspect_Macro_F1 = sentihood_macro_F1(y_true, y_pred)
     aspect_Macro_AUC, sentiment_Acc, sentiment_Macro_AUC = sentihood_AUC_Acc(y_true, score)
