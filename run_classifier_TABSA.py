@@ -147,7 +147,7 @@ def arg_parser():
     parser.add_argument("--data_dir", default="data/sentihood/bert-pair", type=str, required=False,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--vocab_file", default=None, type=str, required=True, help="The vocabulary file that the BERT model was trained on.")
-    parser.add_argument("--output_dir", default=None, type=str, required=True, help="The output directory where the model checkpoints will be written.")
+    parser.add_argument("--output_dir", default="results", type=str, help="The output directory where the model checkpoints will be written.")
     parser.add_argument("--init_checkpoint", default=None, type=str, help="Initial checkpoint (usually from a pre-trained BERT model).")
     
     ## Other parameters
@@ -285,16 +285,14 @@ def main(args):
     print("output_log_file=",output_log_file)
     with open(output_log_file, "w") as writer:
         if args.eval_test:
-            writer.write("epoch\tglobal_step\tloss\ttest_loss\ttest_accuracy\n")
+            writer.write("epoch\tglobal_step\ttrain_loss\ttrain_accuracy\ttest_loss\ttest_accuracy\n")
         else:
-            writer.write("epoch\tglobal_step\tloss\n")
+            writer.write("epoch\tglobal_step\ttrain_loss\ttrain_accuracy\n")
     
     global_step = 0
-    epoch=0
-    
     for epoch_num in range(int(args.num_train_epochs)):
         model.train()
-        train_loss, nb_train_steps = 0, 0
+        train_loss, train_accuracy, nb_train_steps, nb_train_examples = 0, 0, 0, 0
         for step, batch_data in enumerate(tqdm(train_dataloader, desc="Iteration")):
             #token_ids, masks, labels = tuple(t.to(device) for t in batch_data)
             batch = tuple(t.to(device) for t in batch_data)
@@ -303,34 +301,43 @@ def main(args):
            
             #logits is the proba
             loss, logits = outputs[:2]
+            logits = logits.detach().cpu().numpy()
+            label_ids = label_ids.to('cpu').numpy()
+            outputs = np.argmax(logits, axis=1)
+            train_accuracy += np.sum(outputs == label_ids)
+
             train_loss += loss.item()
             loss.backward()
+
+            nb_train_examples += input_ids.size(0)
             nb_train_steps += 1
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 optimizer.step()    # We have accumulated enought gradients
                 model.zero_grad()
                 global_step += 1
             
-            if step%50==0:
-                logger.info("Epoch = %d, Batch = %d, Batch loss = %f, Avg loss = %f", 
-                epoch_num, (step+1), loss.item(), train_loss/(step+1))
+            if (step+1)%50==0:
+                logger.info("Epoch = %d, Batch = %d, Batch loss = %f, Avg loss (per batch) = %f", 
+                epoch_num+1, (step+1), loss.item(), train_loss/(step+1))
 
-            if (nb_train_steps*args.train_batch_size)%5000==0:
+            if global_step%200==0:
                 logger.info("Creating a checkpoint.")
                 model.eval().cpu()
-                ckpt_model_filename = "ckpt_epoch_" + str(epoch_num+1) + "_examples_" + str(nb_train_steps*args.train_batch_size) + ".pth"
+                ckpt_model_filename = "ckpt_epoch_" + str(epoch_num+1) + "_examples_" + str(global_step) + ".pth"
                 ckpt_model_path = os.path.join(args.output_dir, ckpt_model_filename)
                 torch.save(model.state_dict(), ckpt_model_path)
                 model.to(device)
         
-        logger.info("Training loss after %f epoch = %f", epoch_num, train_loss)
+        train_loss /= nb_train_steps
+        train_accuracy /= nb_train_examples
+        logger.info("After %f epoch, Training loss = %f, Training accuracy = %f", epoch_num+1, train_loss, train_accuracy)
 
         # eval_test
         if args.eval_test:
             model.eval()
             test_loss, test_accuracy = 0, 0
             nb_test_steps, nb_test_examples = 0, 0
-            with open(os.path.join(args.output_dir, "test_ep_"+str(epoch)+".txt"), "w") as f_test:
+            with open(os.path.join(args.output_dir, "test_ep_"+str(epoch_num+1)+".txt"), "w") as f_test:
                 for input_ids, input_mask, label_ids in test_dataloader:
                     input_ids = input_ids.to(device)
                     input_mask = input_mask.to(device)
@@ -364,15 +371,17 @@ def main(args):
         
         result = collections.OrderedDict()
         if args.eval_test:
-            result = {'epoch': epoch,
+            result = {'epoch': epoch_num+1,
                     'global_step': global_step,
-                    'loss': train_loss/nb_train_steps,
+                    'train_loss': train_loss,
+                    'train_accuracy': train_accuracy,
                     'test_loss': test_loss,
                     'test_accuracy': test_accuracy}
         else:
-            result = {'epoch': epoch,
+            result = {'epoch': epoch_num+1,
                     'global_step': global_step,
-                    'loss': train_loss/nb_train_steps}
+                    'train_loss': train_loss,
+                    'train_accuracy': train_accuracy}
 
         logger.info("***** Eval results *****")
         with open(output_log_file, "a+") as writer:
@@ -382,6 +391,11 @@ def main(args):
                 writer.write("%s\t" % (str(result[key])))
             writer.write("\n")
     
+    model.eval().cpu()
+    timestamp = time.strftime('%b-%d-%Y_%H%M', time.localtime())
+    save_model_filename = "epoch_" + str(args.num_train_epochs) + "_" + timestamp + ".model"
+    save_model_path = os.path.join(args.output_dir, save_model_filename)
+    torch.save(model.state_dict(), save_model_path)
 
 if __name__ == "__main__":
     args = arg_parser()
