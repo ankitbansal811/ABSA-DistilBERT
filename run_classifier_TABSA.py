@@ -265,7 +265,7 @@ def main(args):
                                                           output_device=args.local_rank)
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)
-    '''
+    
     no_decay = ['bias', 'gamma', 'beta']
     optimizer_parameters = [
          {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
@@ -276,8 +276,7 @@ def main(args):
                          lr=args.learning_rate,
                          warmup=args.warmup_proportion,
                          t_total=num_train_steps)
-    '''
-    optimizer = Adam(model.parameters(), lr=args.learning_rate)
+    #optimizer = Adam(model.parameters(), lr=args.learning_rate)
     # train
     output_log_file = os.path.join(args.output_dir, "log.txt")
     print("output_log_file=",output_log_file)
@@ -297,7 +296,6 @@ def main(args):
             #token_ids, masks, labels = tuple(t.to(device) for t in batch_data)
             batch = tuple(t.to(device) for t in batch_data)
             input_ids, input_mask, label_ids = batch
-            print(input_ids)
             outputs = model(input_ids, input_mask, label_ids)
            
             #logits is the proba
