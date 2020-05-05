@@ -152,7 +152,7 @@ def arg_parser():
     #                             "sentihood_NLI_B", "sentihood_QA_B", "semeval_single", \
     #                             "semeval_NLI_M", "semeval_QA_M", "semeval_NLI_B", "semeval_QA_B"],
     #                     help="The name of the task to train.")
-    parser.add_argument("--data_dir", default=None, type=str, required=True,
+    parser.add_argument("--data_dir", default="data/sentihood/bert-pair", type=str, required=False,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
     parser.add_argument("--vocab_file", default=None, type=str, required=True,
                         help="The vocabulary file that the BERT model was trained on.")
